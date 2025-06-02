@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cricket Scoring Web App</title>
   <style>
     body {
@@ -16,14 +16,14 @@
       max-width: 800px;
       margin: auto;
       padding: 20px;
-      background-color: rgba(255,255,255,0.9);
+      background-color: rgba(255,255,255,0.95);
       border-radius: 12px;
       margin-top: 20px;
     }
-    h2, h3 {
+    h2, h3, h4 {
       text-align: center;
     }
-    .team-section, .score-section, .players-section {
+    .team-section, .score-section, .players-section, .extras-section, .current-batsmen {
       margin-top: 20px;
     }
     .button-grid {
@@ -38,20 +38,58 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background-color: #0056b3;
+      color: white;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
     }
     input {
       padding: 8px;
       width: 100%;
       border: 1px solid #ccc;
       border-radius: 8px;
+      box-sizing: border-box;
     }
     ul {
       list-style-type: none;
       padding: 0;
+      max-height: 200px;
+      overflow-y: auto;
     }
     li {
       padding: 6px 0;
       border-bottom: 1px solid #ddd;
+      font-weight: normal;
+    }
+    li.out {
+      color: red;
+      text-decoration: line-through;
+      font-weight: bold;
+    }
+    li.striker {
+      font-weight: bold;
+      color: green;
+    }
+    .extras-section p {
+      margin: 4px 0;
+      font-weight: bold;
+    }
+    .reset-button {
+      background-color: #dc3545;
+      color: white;
+      margin-top: 15px;
+      width: 100%;
+    }
+    .switch-button {
+      background-color: #007BFF;
+      color: white;
+      margin-top: 15px;
+      width: 100%;
     }
   </style>
 </head>
@@ -67,7 +105,20 @@
     <div class="score-section">
       <h3 id="team-name">Team A</h3>
       <p><strong>Score:</strong> <span id="score">0</span> / <span id="wickets">0</span></p>
-      <p><strong>Over:</strong> <span id="over"></span></p>
+      <p><strong>Overs:</strong> <span id="over">0.0</span></p>
+    </div>
+
+    <div class="current-batsmen">
+      <p><strong>Striker:</strong> <span id="striker-name">-</span></p>
+      <p><strong>Non-Striker:</strong> <span id="non-striker-name">-</span></p>
+    </div>
+
+    <div class="extras-section">
+      <p>Extras:</p>
+      <p>Wides: <span id="wides">0</span></p>
+      <p>No Balls: <span id="noBalls">0</span></p>
+      <p>Byes: <span id="byes">0</span></p>
+      <p>Leg Byes: <span id="legByes">0</span></p>
     </div>
 
     <div class="button-grid">
@@ -82,10 +133,11 @@
       <button onclick="recordWicket()">Wicket</button>
     </div>
 
-    <button onclick="switchTeam()" style="margin-top: 15px; width: 100%; background-color: #007BFF; color: white;">Switch Team</button>
+    <button class="switch-button" onclick="switchTeam()">Switch Team</button>
+    <button class="reset-button" onclick="resetMatch()">Reset Match</button>
 
     <div class="players-section">
-      <h3>Add Player</h3>
+      <h3>Add Player (Max 11 per team)</h3>
       <input id="playerName" placeholder="Player Name" />
       <button onclick="addPlayer()" style="margin-top: 10px;">Add Player</button>
       <h4>Players</h4>
@@ -95,78 +147,269 @@
 
   <script>
     let teams = [
-      { name: 'Team A', players: [], score: 0, wickets: 0, over: [] },
-      { name: 'Team B', players: [], score: 0, wickets: 0, over: [] }
+      { 
+        name: 'Team A', 
+        players: [], 
+        score: 0, 
+        wickets: 0, 
+        overs: 0, // completed overs
+        ballsInCurrentOver: 0,
+        wides: 0,
+        noBalls: 0,
+        byes: 0,
+        legByes: 0,
+        balls: [] // events of balls in the current innings (optional)
+      },
+      { 
+        name: 'Team B', 
+        players: [], 
+        score: 0, 
+        wickets: 0, 
+        overs: 0, 
+        ballsInCurrentOver: 0,
+        wides: 0,
+        noBalls: 0,
+        byes: 0,
+        legByes: 0,
+        balls: []
+      }
     ];
-    let currentTeam = 0;
 
+    let currentTeam = 0;
+    // Indexes of striker and non-striker players in players array; -1 if none selected yet
+    let strikerIndex = -1;
+    let nonStrikerIndex = -1;
+
+    // Team name input events
     document.getElementById('team0').addEventListener('input', e => {
-      teams[0].name = e.target.value;
-      if (currentTeam === 0) document.getElementById('team-name').innerText = e.target.value;
+      teams[0].name = e.target.value.trim() || 'Team A';
+      if (currentTeam === 0) updateDisplay();
     });
 
     document.getElementById('team1').addEventListener('input', e => {
-      teams[1].name = e.target.value;
-      if (currentTeam === 1) document.getElementById('team-name').innerText = e.target.value;
+      teams[1].name = e.target.value.trim() || 'Team B';
+      if (currentTeam === 1) updateDisplay();
     });
 
+    function updateOversDisplay() {
+      let t = teams[currentTeam];
+      let overs = t.overs + (t.ballsInCurrentOver / 6);
+      document.getElementById('over').innerText = overs.toFixed(1);
+    }
+
+    function updateExtrasDisplay() {
+      let t = teams[currentTeam];
+      document.getElementById('wides').innerText = t.wides;
+      document.getElementById('noBalls').innerText = t.noBalls;
+      document.getElementById('byes').innerText = t.byes;
+      document.getElementById('legByes').innerText = t.legByes;
+    }
+
+    function updateBatsmenDisplay() {
+      let t = teams[currentTeam];
+      const striker = strikerIndex >= 0 ? t.players[strikerIndex] : null;
+      const nonStriker = nonStrikerIndex >= 0 ? t.players[nonStrikerIndex] : null;
+
+      document.getElementById('striker-name').innerText = striker ? `${striker.name} (${striker.runs} runs, ${striker.balls} balls)` : '-';
+      document.getElementById('non-striker-name').innerText = nonStriker ? `${nonStriker.name} (${nonStriker.runs} runs, ${nonStriker.balls} balls)` : '-';
+    }
+
     function updateDisplay() {
-      document.getElementById('team-name').innerText = teams[currentTeam].name;
-      document.getElementById('score').innerText = teams[currentTeam].score;
-      document.getElementById('wickets').innerText = teams[currentTeam].wickets;
-      document.getElementById('over').innerText = teams[currentTeam].over.join(', ');
+      let t = teams[currentTeam];
+      document.getElementById('team-name').innerText = t.name;
+      document.getElementById('score').innerText = t.score;
+      document.getElementById('wickets').innerText = t.wickets;
+      updateOversDisplay();
+      updateExtrasDisplay();
+      updateBatsmenDisplay();
+
       let list = document.getElementById('playerList');
       list.innerHTML = '';
-      teams[currentTeam].players.forEach(p => {
+      t.players.forEach((p, idx) => {
         let li = document.createElement('li');
-        li.innerText = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
+        li.textContent = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
+        if (p.out) li.classList.add('out');
+        if (idx === strikerIndex) li.classList.add('striker');
+        if (idx === nonStrikerIndex) li.classList.add('striker'); // highlight non-striker also, different color optional
         list.appendChild(li);
       });
+
+      // Disable scoring buttons if no players or not enough players
+      let buttons = document.querySelectorAll('.button-grid button');
+      if (teams[currentTeam].players.length < 2) {
+        buttons.forEach(b => b.disabled = true);
+      } else {
+        buttons.forEach(b => b.disabled = false);
+      }
     }
 
     function addPlayer() {
-      let name = document.getElementById('playerName').value;
-      if (name && teams[currentTeam].players.length < 11) {
-        teams[currentTeam].players.push({ name, runs: 0, balls: 0, out: false });
-        document.getElementById('playerName').value = '';
-        updateDisplay();
+      let name = document.getElementById('playerName').value.trim();
+      let t = teams[currentTeam];
+      if (!name) {
+        alert("Player name cannot be empty.");
+        return;
       }
+      if (t.players.length >= 11) {
+        alert("Maximum 11 players allowed per team.");
+        return;
+      }
+      // Add new player
+      t.players.push({ name, runs: 0, balls: 0, out: false });
+      document.getElementById('playerName').value = '';
+
+      // If less than 2 players, assign striker/non-striker accordingly
+      if (t.players.length === 1) {
+        strikerIndex = 0;
+        nonStrikerIndex = -1;
+      } else if (t.players.length === 2 && nonStrikerIndex === -1) {
+        nonStrikerIndex = 1;
+      }
+
+      updateDisplay();
+    }
+
+    function rotateStrike() {
+      // Swap striker and non-striker indices
+      [strikerIndex, nonStrikerIndex] = [nonStrikerIndex, strikerIndex];
+    }
+
+    function nextBatsman() {
+      let t = teams[currentTeam];
+      // Find next batsman who is not out and not striker/non-striker
+      for (let i = 0; i < t.players.length; i++) {
+        if (!t.players[i].out && i !== strikerIndex && i !== nonStrikerIndex) {
+          return i;
+        }
+      }
+      // No batsman left
+      return -1;
     }
 
     function recordRun(runs, type = 'normal') {
-      if (type === 'normal' || type === 'bye' || type === 'legbye') {
-        teams[currentTeam].score += runs;
-      } else {
-        teams[currentTeam].score += 1;
+      let t = teams[currentTeam];
+
+      if (t.players.length < 2) {
+        alert("Add at least 2 players before recording runs.");
+        return;
+      }
+      if (strikerIndex === -1 || nonStrikerIndex === -1) {
+        alert("At least two players must be set as batsmen.");
+        return;
       }
 
-      let striker = teams[currentTeam].players.find(p => !p.out);
-      if (striker) {
-        if (type === 'normal') {
-          striker.runs += runs;
-          striker.balls += 1;
-        } else if (type === 'bye' || type === 'legbye') {
-          striker.balls += 1;
-        }
+      switch(type) {
+        case 'normal':
+          t.score += runs;
+          t.players[strikerIndex].runs += runs;
+          t.players[strikerIndex].balls += 1;
+          t.ballsInCurrentOver++;
+          break;
+        case 'bye':
+          t.score += runs;
+          t.players[strikerIndex].balls += 1;
+          t.byes += runs;
+          t.ballsInCurrentOver++;
+          break;
+        case 'legbye':
+          t.score += runs;
+          t.players[strikerIndex].balls += 1;
+          t.legByes += runs;
+          t.ballsInCurrentOver++;
+          break;
+        case 'wide':
+          t.score += 1;
+          t.wides++;
+          // Wide does NOT count as a legal ball, ballsInCurrentOver unchanged
+          break;
+        case 'noball':
+          t.score += 1;
+          t.noBalls++;
+          // No ball does NOT count as legal ball
+          break;
       }
 
-      teams[currentTeam].over.push(type === 'normal' ? runs : type.toUpperCase());
+      // Add ball event (for reference)
+      t.balls.push(type === 'normal' ? runs : type.toUpperCase());
+
+      // Strike rotation on odd runs only for normal runs
+      if (type === 'normal' && runs % 2 === 1) {
+        rotateStrike();
+      }
+
+      // Check if over complete (6 legal balls)
+      if (t.ballsInCurrentOver === 6) {
+        t.overs++;
+        t.ballsInCurrentOver = 0;
+        rotateStrike(); // End of over strike rotation
+      }
+
       updateDisplay();
     }
 
     function recordWicket() {
-      teams[currentTeam].wickets += 1;
-      let striker = teams[currentTeam].players.find(p => !p.out);
-      if (striker) striker.out = true;
-      teams[currentTeam].over.push('W');
+      let t = teams[currentTeam];
+      if (t.players.length < 2) {
+        alert("Add at least 2 players before recording wickets.");
+        return;
+      }
+      if (strikerIndex === -1) {
+        alert("No striker found.");
+        return;
+      }
+
+      t.wickets++;
+      t.players[strikerIndex].out = true;
+      t.players[strikerIndex].balls += 1;
+      t.ballsInCurrentOver++;
+      t.balls.push('W');
+
+      // Get next batsman to replace out striker
+      let next = nextBatsman();
+      if (next === -1) {
+        // All out or no batsmen left
+        strikerIndex = -1;
+        alert("All players are out or no batsman left.");
+      } else {
+        strikerIndex = next;
+      }
+
+      // Check if over complete
+      if (t.ballsInCurrentOver === 6) {
+        t.overs++;
+        t.ballsInCurrentOver = 0;
+        rotateStrike(); // end of over strike rotation
+      }
+
       updateDisplay();
     }
 
     function switchTeam() {
       currentTeam = currentTeam === 0 ? 1 : 0;
+
+      // Reset striker/non-striker for new team
+      strikerIndex = teams[currentTeam].players.length >= 1 ? 0 : -1;
+      nonStrikerIndex = teams[currentTeam].players.length >= 2 ? 1 : -1;
+
       updateDisplay();
     }
 
+    function resetMatch() {
+      if(!confirm("Are you sure you want to reset the entire match? This will clear all data.")) return;
+
+      teams = [
+        { name: 'Team A', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, balls: [] },
+        { name: 'Team B', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, balls: [] }
+      ];
+      currentTeam = 0;
+      strikerIndex = -1;
+      nonStrikerIndex = -1;
+      document.getElementById('team0').value = '';
+      document.getElementById('team1').value = '';
+      updateDisplay();
+    }
+
+    // Initialize
     updateDisplay();
   </script>
 </body>
