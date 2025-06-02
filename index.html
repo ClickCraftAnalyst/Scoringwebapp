@@ -7,7 +7,8 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f0f0f0;
+      background: url('your-outer-background.jpg') no-repeat center center fixed;
+      background-size: cover;
       margin: 0;
       padding: 0;
     }
@@ -15,9 +16,13 @@
       max-width: 800px;
       margin: 20px auto;
       padding: 20px;
-      background-color: white;
+      background: rgba(255, 255, 255, 0.9);
       border-radius: 12px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-image: url('your-logo.png');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 250px auto;
     }
     h2, h3, h4 {
       text-align: center;
@@ -52,6 +57,7 @@
       overflow-y: auto;
       border: 1px solid #ccc;
       border-radius: 8px;
+      background: rgba(255,255,255,0.85);
     }
     li {
       padding: 6px 12px;
@@ -79,9 +85,9 @@
       text-align: center;
       padding: 12px 0;
       font-size: 0.9em;
-      color: #666;
+      color: #fff;
+      background-color: rgba(0,0,0,0.5);
       margin-top: 30px;
-      border-top: 1px solid #ccc;
       user-select: none;
     }
   </style>
@@ -89,13 +95,11 @@
 <body>
   <div class="container">
     <h2>Cricket Scoring Web App</h2>
-
     <div>
       <input id="team0" placeholder="Enter Team A Name" value="Team A" />
       <input id="team1" placeholder="Enter Team B Name" value="Team B" />
     </div>
-
-    <div class="teams-summary" aria-label="Teams Summary">
+    <div class="teams-summary">
       <div class="team-summary" id="summary0">
         <h3 id="team0Name">Team A</h3>
         <p>Score: <span id="team0Score">0</span> / <span id="team0Wickets">0</span></p>
@@ -107,14 +111,11 @@
         <p>Overs: <span id="team1Overs">0.0</span></p>
       </div>
     </div>
-
     <hr style="margin: 20px 0" />
-
     <h3>Current Team: <span id="currentTeamName">Team A</span></h3>
     <p><strong>Score:</strong> <span id="currentScore">0</span> / <span id="currentWickets">0</span></p>
     <p><strong>Overs:</strong> <span id="currentOvers">0.0</span></p>
-
-    <div class="button-grid" aria-label="Scoring buttons">
+    <div class="button-grid">
       <button onclick="recordRun(1)">1 Run</button>
       <button onclick="recordRun(2)">2 Runs</button>
       <button onclick="recordRun(4)">4 Runs</button>
@@ -125,30 +126,24 @@
       <button onclick="recordRun(1, 'legbye')">Leg Bye</button>
       <button onclick="recordWicket()">Wicket</button>
     </div>
-
     <div style="margin-top: 15px; text-align: center;">
       <button onclick="undoLastBall()" style="background-color:#f39c12; color:white;">Undo Last Ball</button>
       <button onclick="clearInnings()" style="background-color:#e74c3c; color:white;">Clear Innings</button>
       <button onclick="switchTeam()" style="background-color:#3498db; color:white;">Switch Team</button>
       <button onclick="resetMatch()" style="background-color:#2ecc71; color:white;">Reset Match</button>
     </div>
-
     <h4 style="margin-top: 30px;">Players List (Current Team)</h4>
     <input id="playerName" placeholder="Player Name" />
     <button onclick="addPlayer()" style="margin-left: 10px;">Add Player</button>
-
-    <ul id="playerList" aria-label="Player list"></ul>
-
+    <ul id="playerList"></ul>
     <h4>Ball by Ball (Current Innings)</h4>
-    <ul id="ballByBallList" aria-label="Ball by ball scoring"></ul>
-
+    <ul id="ballByBallList"></ul>
   </div>
-
   <footer class="footer">
     &copy; 2025 Clickcraft Analyst. All rights reserved.
   </footer>
-
-<script>
+  <!-- JavaScript remains unchanged -->
+ <script>
   let teams = [
     {
       name: 'Team A',
@@ -204,7 +199,7 @@
     list.innerHTML = '';
     t.players.forEach(p => {
       let li = document.createElement('li');
-      li.textContent = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
+      li.textContent = ${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'};
       list.appendChild(li);
     });
 
@@ -213,7 +208,7 @@
     ballList.innerHTML = '';
     t.balls.forEach((ball, idx) => {
       let li = document.createElement('li');
-      li.textContent = `Ball ${idx + 1}: ${ball.type === 'normal' ? ball.runs + ' run(s)' : ball.type.toUpperCase()}`;
+      li.textContent = Ball ${idx + 1}: ${ball.type === 'normal' ? ball.runs + ' run(s)' : ball.type.toUpperCase()};
       if(ball.wicket) li.textContent += ' (WICKET)';
       ballList.appendChild(li);
     });
