@@ -91,6 +91,22 @@
       margin-top: 15px;
       width: 100%;
     }
+    .undo-clear-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+      gap: 10px;
+    }
+    .undo-clear-buttons button {
+      flex: 1;
+    }
+    .overs-ballruns {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 18px;
+      font-family: monospace;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -106,6 +122,7 @@
       <h3 id="team-name">Team A</h3>
       <p><strong>Score:</strong> <span id="score">0</span> / <span id="wickets">0</span></p>
       <p><strong>Overs:</strong> <span id="over">0.0</span></p>
+      <div class="overs-ballruns" id="balls-of-over"></div>
     </div>
 
     <div class="current-batsmen">
@@ -133,6 +150,11 @@
       <button onclick="recordWicket()">Wicket</button>
     </div>
 
+    <div class="undo-clear-buttons">
+      <button onclick="undoLastBall()">Undo Last Ball</button>
+      <button onclick="clearInnings()">Clear Current Innings</button>
+    </div>
+
     <button class="switch-button" onclick="switchTeam()">Switch Team</button>
     <button class="reset-button" onclick="resetMatch()">Reset Match</button>
 
@@ -158,7 +180,7 @@
         noBalls: 0,
         byes: 0,
         legByes: 0,
-        balls: [] // events of balls in the current innings (optional)
+        balls: [] // all ball events (each ball as object)
       },
       { 
         name: 'Team B', 
@@ -176,11 +198,9 @@
     ];
 
     let currentTeam = 0;
-    // Indexes of striker and non-striker players in players array; -1 if none selected yet
     let strikerIndex = -1;
     let nonStrikerIndex = -1;
 
-    // Team name input events
     document.getElementById('team0').addEventListener('input', e => {
       teams[0].name = e.target.value.trim() || 'Team A';
       if (currentTeam === 0) updateDisplay();
@@ -193,8 +213,27 @@
 
     function updateOversDisplay() {
       let t = teams[currentTeam];
-      let overs = t.overs + (t.ballsInCurrentOver / 6);
-      document.getElementById('over').innerText = overs.toFixed(1);
+      let oversText = `${t.overs}.${t.ballsInCurrentOver}`;
+      document.getElementById('over').innerText = oversText;
+      updateBallsOfOverDisplay();
+    }
+
+    function updateBallsOfOverDisplay() {
+      let t = teams[currentTeam];
+      // Show runs/events of balls in current over
+      let balls = t.balls.slice(-t.ballsInCurrentOver); // last ballsInCurrentOver balls
+      let displayStr = balls.map(ball => {
+        switch(ball.type) {
+          case 'normal': return ball.runs;
+          case 'wide': return 'Wd';
+          case 'noball': return 'Nb';
+          case 'bye': return 'B';
+          case 'legbye': return 'Lb';
+          case 'wicket': return 'W';
+          default: return '?';
+        }
+      }).join(' ');
+      document.getElementById('balls-of-over').innerText = displayStr || '-';
     }
 
     function updateExtrasDisplay() {
@@ -230,7 +269,7 @@
         li.textContent = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
         if (p.out) li.classList.add('out');
         if (idx === strikerIndex) li.classList.add('striker');
-        if (idx === nonStrikerIndex) li.classList.add('striker'); // highlight non-striker also, different color optional
+        if (idx === nonStrikerIndex) li.classList.add('striker');
         list.appendChild(li);
       });
 
@@ -254,11 +293,9 @@
         alert("Maximum 11 players allowed per team.");
         return;
       }
-      // Add new player
       t.players.push({ name, runs: 0, balls: 0, out: false });
       document.getElementById('playerName').value = '';
 
-      // If less than 2 players, assign striker/non-striker accordingly
       if (t.players.length === 1) {
         strikerIndex = 0;
         nonStrikerIndex = -1;
@@ -270,78 +307,71 @@
     }
 
     function rotateStrike() {
-      // Swap striker and non-striker indices
       [strikerIndex, nonStrikerIndex] = [nonStrikerIndex, strikerIndex];
     }
 
     function nextBatsman() {
       let t = teams[currentTeam];
-      // Find next batsman who is not out and not striker/non-striker
       for (let i = 0; i < t.players.length; i++) {
         if (!t.players[i].out && i !== strikerIndex && i !== nonStrikerIndex) {
           return i;
         }
       }
-      // No batsman left
       return -1;
     }
 
     function recordRun(runs, type = 'normal') {
       let t = teams[currentTeam];
 
+      // Ensure 2 players minimum to proceed
       if (t.players.length < 2) {
-        alert("Add at least 2 players before recording runs.");
-        return;
-      }
-      if (strikerIndex === -1 || nonStrikerIndex === -1) {
-        alert("At least two players must be set as batsmen.");
+        alert("Add at least 2 players before scoring.");
         return;
       }
 
-      switch(type) {
-        case 'normal':
+      // On wides and no balls - ball does not count (no ball count increase)
+      if (type === 'wide') {
+        t.score += 1;
+        t.wides += 1;
+        t.balls.push({type: 'wide', runs: 1});
+        // No ball increment or strike rotation on wides
+      } else if (type === 'noball') {
+        t.score += 1;
+        t.noBalls += 1;
+        t.balls.push({type: 'noball', runs: 1});
+        // No ball increment or strike rotation on no balls
+      } else {
+        // Legal ball - increment ballsInCurrentOver
+        t.ballsInCurrentOver++;
+        // Push ball with run details
+        t.balls.push({type: type === 'normal' ? 'normal' : type, runs: runs});
+        
+        // Update score accordingly
+        if (type === 'normal') {
           t.score += runs;
-          t.players[strikerIndex].runs += runs;
-          t.players[strikerIndex].balls += 1;
-          t.ballsInCurrentOver++;
-          break;
-        case 'bye':
+          // Update striker stats
+          let striker = t.players[strikerIndex];
+          striker.runs += runs;
+          striker.balls++;
+        } else if (type === 'bye') {
           t.score += runs;
-          t.players[strikerIndex].balls += 1;
           t.byes += runs;
-          t.ballsInCurrentOver++;
-          break;
-        case 'legbye':
+        } else if (type === 'legbye') {
           t.score += runs;
-          t.players[strikerIndex].balls += 1;
           t.legByes += runs;
-          t.ballsInCurrentOver++;
-          break;
-        case 'wide':
-          t.score += 1;
-          t.wides++;
-          // Wide does NOT count as a legal ball, ballsInCurrentOver unchanged
-          break;
-        case 'noball':
-          t.score += 1;
-          t.noBalls++;
-          // No ball does NOT count as legal ball
-          break;
-      }
+        }
 
-      // Add ball event (for reference)
-      t.balls.push(type === 'normal' ? runs : type.toUpperCase());
+        // Rotate strike if runs odd on normal or bye/legbye
+        if (runs % 2 === 1) {
+          rotateStrike();
+        }
 
-      // Strike rotation on odd runs only for normal runs
-      if (type === 'normal' && runs % 2 === 1) {
-        rotateStrike();
-      }
-
-      // Check if over complete (6 legal balls)
-      if (t.ballsInCurrentOver === 6) {
-        t.overs++;
-        t.ballsInCurrentOver = 0;
-        rotateStrike(); // End of over strike rotation
+        // Check if over is completed
+        if (t.ballsInCurrentOver === 6) {
+          t.overs++;
+          t.ballsInCurrentOver = 0;
+          rotateStrike();
+        }
       }
 
       updateDisplay();
@@ -349,36 +379,35 @@
 
     function recordWicket() {
       let t = teams[currentTeam];
+
       if (t.players.length < 2) {
-        alert("Add at least 2 players before recording wickets.");
-        return;
-      }
-      if (strikerIndex === -1) {
-        alert("No striker found.");
+        alert("Add at least 2 players before recording a wicket.");
         return;
       }
 
-      t.wickets++;
-      t.players[strikerIndex].out = true;
-      t.players[strikerIndex].balls += 1;
+      // Ball counted
       t.ballsInCurrentOver++;
-      t.balls.push('W');
+      t.balls.push({type: 'wicket', runs: 0});
+      
+      // Mark striker out
+      t.players[strikerIndex].out = true;
+      t.players[strikerIndex].balls++;
+      t.wickets++;
 
-      // Get next batsman to replace out striker
-      let next = nextBatsman();
-      if (next === -1) {
-        // All out or no batsmen left
-        strikerIndex = -1;
-        alert("All players are out or no batsman left.");
+      // Find next batsman
+      let nextBatsmanIndex = nextBatsman();
+      if (nextBatsmanIndex === -1) {
+        alert("All players out or no new batsman available.");
+        // End innings or match logic here if needed
       } else {
-        strikerIndex = next;
+        strikerIndex = nextBatsmanIndex;
       }
 
-      // Check if over complete
+      // Over complete check
       if (t.ballsInCurrentOver === 6) {
         t.overs++;
         t.ballsInCurrentOver = 0;
-        rotateStrike(); // end of over strike rotation
+        rotateStrike();
       }
 
       updateDisplay();
@@ -386,17 +415,12 @@
 
     function switchTeam() {
       currentTeam = currentTeam === 0 ? 1 : 0;
-
-      // Reset striker/non-striker for new team
       strikerIndex = teams[currentTeam].players.length >= 1 ? 0 : -1;
       nonStrikerIndex = teams[currentTeam].players.length >= 2 ? 1 : -1;
-
       updateDisplay();
     }
 
     function resetMatch() {
-      if(!confirm("Are you sure you want to reset the entire match? This will clear all data.")) return;
-
       teams = [
         { name: 'Team A', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, balls: [] },
         { name: 'Team B', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, balls: [] }
@@ -404,12 +428,111 @@
       currentTeam = 0;
       strikerIndex = -1;
       nonStrikerIndex = -1;
-      document.getElementById('team0').value = '';
-      document.getElementById('team1').value = '';
+      document.getElementById('team0').value = 'Team A';
+      document.getElementById('team1').value = 'Team B';
       updateDisplay();
     }
 
-    // Initialize
+    function clearInnings() {
+      let t = teams[currentTeam];
+      t.score = 0;
+      t.wickets = 0;
+      t.overs = 0;
+      t.ballsInCurrentOver = 0;
+      t.wides = 0;
+      t.noBalls = 0;
+      t.byes = 0;
+      t.legByes = 0;
+      t.balls = [];
+      // Reset players runs, balls and out status but keep players
+      t.players.forEach(p => {
+        p.runs = 0;
+        p.balls = 0;
+        p.out = false;
+      });
+      strikerIndex = t.players.length >= 1 ? 0 : -1;
+      nonStrikerIndex = t.players.length >= 2 ? 1 : -1;
+      updateDisplay();
+    }
+
+    function undoLastBall() {
+      let t = teams[currentTeam];
+      if (t.balls.length === 0) {
+        alert("No balls to undo!");
+        return;
+      }
+
+      let lastBall = t.balls.pop();
+
+      // Undo logic depends on ball type
+      switch(lastBall.type) {
+        case 'wide':
+          t.score -= 1;
+          t.wides--;
+          // No ball increment, no strike change
+          break;
+        case 'noball':
+          t.score -= 1;
+          t.noBalls--;
+          break;
+        case 'bye':
+          t.score -= lastBall.runs;
+          t.byes -= lastBall.runs;
+          t.ballsInCurrentOver--;
+          break;
+        case 'legbye':
+          t.score -= lastBall.runs;
+          t.legByes -= lastBall.runs;
+          t.ballsInCurrentOver--;
+          break;
+        case 'normal':
+          t.score -= lastBall.runs;
+          // Remove runs from striker
+          if (strikerIndex >= 0 && t.players[strikerIndex]) {
+            t.players[strikerIndex].runs -= lastBall.runs;
+            t.players[strikerIndex].balls--;
+          }
+          t.ballsInCurrentOver--;
+          break;
+        case 'wicket':
+          // Undo wicket
+          t.wickets--;
+          t.ballsInCurrentOver--;
+          // Undo striker out - mark last out player NOT out
+          // Assume last wicket was striker (correct in recordWicket)
+          // Find last player marked out:
+          let lastOutPlayerIndex = t.players.findIndex(p => p.out);
+          if (lastOutPlayerIndex === -1) {
+            // If none found, assume strikerIndex was out
+            lastOutPlayerIndex = strikerIndex;
+          }
+          if (lastOutPlayerIndex !== -1) {
+            t.players[lastOutPlayerIndex].out = false;
+            t.players[lastOutPlayerIndex].balls--;
+            strikerIndex = lastOutPlayerIndex;
+          }
+          break;
+      }
+
+      // Recalculate overs and ballsInCurrentOver if needed
+      if (t.ballsInCurrentOver < 0) {
+        if (t.overs > 0) {
+          t.overs--;
+          t.ballsInCurrentOver = 5;
+        } else {
+          t.ballsInCurrentOver = 0;
+        }
+      }
+
+      // After undo, recalc overs based on total legal balls
+      // Legal balls exclude wides and no balls
+      let legalBallsCount = t.balls.filter(b => b.type !== 'wide' && b.type !== 'noball').length;
+      t.overs = Math.floor(legalBallsCount / 6);
+      t.ballsInCurrentOver = legalBallsCount % 6;
+
+      updateDisplay();
+    }
+
     updateDisplay();
   </script>
 </body>
