@@ -1,135 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cricket Scoring Web App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: url('outside-bg.jpg') no-repeat center center fixed;
-      background-size: cover;
+      background: #f0f0f0; /* solid light gray background */
       margin: 0;
       padding: 0;
-      position: relative;
     }
-
-    /* Overlay to dim background image */
-    body::before {
-      content: "";
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.4); /* Dim effect */
-      z-index: -1;
-    }
-
     .container {
       max-width: 800px;
       margin: 20px auto;
       padding: 20px;
-      position: relative;
-      background-color: rgba(255, 255, 255, 0.9);
+      background-color: white;
       border-radius: 12px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      overflow: hidden;
     }
-
-    .container::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 300px;
-      height: 300px;
-      background: url('logo.png') no-repeat center center;
-      background-size: contain;
-      opacity: 0.1;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 0;
+    h2, h3, h4 {
+      text-align: center;
+      margin: 8px 0;
     }
-
-    .container > * {
-      position: relative;
-      z-index: 1;
-    }
-
-    .btn {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 10px 5px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .btn-start {
-      background-color: #28a745;
-      color: white;
-    }
-
-    .btn-end {
-      background-color: #dc3545;
-      color: white;
-    }
-
-    .disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
     input {
       padding: 8px;
-      width: 100%;
-      margin-top: 10px;
-      box-sizing: border-box;
+      width: 48%;
+      margin: 5px 1%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
     }
-
-    #playerList p {
-      margin: 4px 0;
+    button {
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px 2px;
+    }
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    li {
+      padding: 6px 12px;
+      border-bottom: 1px solid #ddd;
+      font-size: 15px;
+    }
+    .teams-summary {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+      background: #eef2f7;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .team-summary {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border-right: 1px solid #ccc;
+    }
+    .team-summary:last-child {
+      border-right: none;
+    }
+    .footer {
+      text-align: center;
+      padding: 12px 0;
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 30px;
+      border-top: 1px solid #ccc;
+      user-select: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Score Tracker</h2>
+    <h2>Cricket Scoring Web App</h2>
 
-    <label for="playerInput">Add Player:</label>
-    <input type="text" id="playerInput" placeholder="Enter player name">
-    <button class="btn" onclick="addPlayer()">Add Player</button>
+    <div>
+      <input id="team0" placeholder="Enter Team A Name" value="Team A" />
+      <input id="team1" placeholder="Enter Team B Name" value="Team B" />
+    </div>
 
-    <div id="playerList"></div>
+    <div class="teams-summary" aria-label="Teams Summary">
+      <div class="team-summary" id="summary0">
+        <h3 id="team0Name">Team A</h3>
+        <p>Score: <span id="team0Score">0</span> / <span id="team0Wickets">0</span></p>
+        <p>Overs: <span id="team0Overs">0.0</span></p>
+      </div>
+      <div class="team-summary" id="summary1">
+        <h3 id="team1Name">Team B</h3>
+        <p>Score: <span id="team1Score">0</span> / <span id="team1Wickets">0</span></p>
+        <p>Overs: <span id="team1Overs">0.0</span></p>
+      </div>
+    </div>
 
-    <button id="startRunsBtn" class="btn btn-start disabled" disabled>Start Runs</button>
-    <button class="btn btn-end" onclick="endInning()">End Inning</button>
+    <hr style="margin: 20px 0" />
+
+    <h3>Current Team: <span id="currentTeamName">Team A</span></h3>
+    <p><strong>Score:</strong> <span id="currentScore">0</span> / <span id="currentWickets">0</span></p>
+    <p><strong>Overs:</strong> <span id="currentOvers">0.0</span></p>
+
+    <div class="button-grid" aria-label="Scoring buttons">
+      <button onclick="recordRun(1)">1 Run</button>
+      <button onclick="recordRun(2)">2 Runs</button>
+      <button onclick="recordRun(4)">4 Runs</button>
+      <button onclick="recordRun(6)">6 Runs</button>
+      <button onclick="recordRun(0, 'wide')">Wide</button>
+      <button onclick="recordRun(0, 'noball')">No Ball</button>
+      <button onclick="recordRun(1, 'bye')">Bye</button>
+      <button onclick="recordRun(1, 'legbye')">Leg Bye</button>
+      <button onclick="recordWicket()">Wicket</button>
+    </div>
+
+    <div style="margin-top: 15px; text-align: center;">
+      <button onclick="undoLastBall()" style="background-color:#f39c12; color:white;">Undo Last Ball</button>
+      <button onclick="clearInnings()" style="background-color:#e74c3c; color:white;">Clear Innings</button>
+      <button onclick="switchTeam()" style="background-color:#3498db; color:white;">Switch Team</button>
+      <button onclick="resetMatch()" style="background-color:#2ecc71; color:white;">Reset Match</button>
+    </div>
+
+    <h4 style="margin-top: 30px;">Players List (Current Team)</h4>
+    <input id="playerName" placeholder="Player Name" />
+    <button onclick="addPlayer()" style="margin-left: 10px;">Add Player</button>
+
+    <ul id="playerList" aria-label="Player list"></ul>
+
+    <h4>Ball by Ball (Current Innings)</h4>
+    <ul id="ballByBallList" aria-label="Ball by ball scoring"></ul>
+
   </div>
 
-  <script>
-    const players = [];
-    const playerInput = document.getElementById('playerInput');
-    const playerList = document.getElementById('playerList');
-    const startBtn = document.getElementById('startRunsBtn');
+  <footer class="footer">
+    &copy; 2025 Clickcraft Analyst. All rights reserved.
+  </footer>
 
-    function addPlayer() {
-      const name = playerInput.value.trim();
-      if (name) {
-        players.push(name);
-        const p = document.createElement('p');
-        p.textContent = name;
-        playerList.appendChild(p);
-        playerInput.value = '';
-        updateStartButton();
+<script>
+  let teams = [
+    {
+      name: 'Team A',
+      players: [],
+      score: 0,
+      wickets: 0,
+      overs: 0,
+      ballsInCurrentOver: 0,
+      balls: [],  // Array to hold ball events for undo & ball-by-ball
+    },
+    {
+      name: 'Team B',
+      players: [],
+      score: 0,
+      wickets: 0,
+      overs: 0,
+      ballsInCurrentOver: 0,
+      balls: [],
+    }
+  ];
+
+  let currentTeam = 0;
+
+  // Team name inputs update team names live and display updated
+  document.getElementById('team0').addEventListener('input', e => {
+    teams[0].name = e.target.value || 'Team A';
+    updateDisplay();
+  });
+
+  document.getElementById('team1').addEventListener('input', e => {
+    teams[1].name = e.target.value || 'Team B';
+    updateDisplay();
+  });
+
+  function updateDisplay() {
+    // Update summary for both teams
+    for (let i = 0; i <= 1; i++) {
+      document.getElementById('team' + i + 'Name').innerText = teams[i].name;
+      document.getElementById('team' + i + 'Score').innerText = teams[i].score;
+      document.getElementById('team' + i + 'Wickets').innerText = teams[i].wickets;
+      document.getElementById('team' + i + 'Overs').innerText = teams[i].overs + '.' + teams[i].ballsInCurrentOver;
+    }
+
+    // Current team display
+    const t = teams[currentTeam];
+    document.getElementById('currentTeamName').innerText = t.name;
+    document.getElementById('currentScore').innerText = t.score;
+    document.getElementById('currentWickets').innerText = t.wickets;
+    document.getElementById('currentOvers').innerText = t.overs + '.' + t.ballsInCurrentOver;
+
+    // Update players list of current team
+    const list = document.getElementById('playerList');
+    list.innerHTML = '';
+    t.players.forEach(p => {
+      let li = document.createElement('li');
+      li.textContent = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
+      list.appendChild(li);
+    });
+
+    // Update ball-by-ball display for current innings
+    const ballList = document.getElementById('ballByBallList');
+    ballList.innerHTML = '';
+    t.balls.forEach((ball, idx) => {
+      let li = document.createElement('li');
+      li.textContent = `Ball ${idx + 1}: ${ball.type === 'normal' ? ball.runs + ' run(s)' : ball.type.toUpperCase()}`;
+      if(ball.wicket) li.textContent += ' (WICKET)';
+      ballList.appendChild(li);
+    });
+  }
+
+  function addPlayer() {
+    let nameInput = document.getElementById('playerName');
+    let name = nameInput.value.trim();
+    if (name === '') {
+      alert('Please enter player name.');
+      return;
+    }
+    if (teams[currentTeam].players.length >= 11) {
+      alert('Maximum 11 players allowed per team.');
+      return;
+    }
+    teams[currentTeam].players.push({ name: name, runs: 0, balls: 0, out: false });
+    nameInput.value = '';
+    updateDisplay();
+  }
+
+  function recordRun(runs, type = 'normal') {
+    let t = teams[currentTeam];
+
+    // Extra ball types (wide/noball) do NOT count as ball faced
+    const isExtra = (type === 'wide' || type === 'noball');
+
+    // Add score depending on type
+    if (type === 'normal' || type === 'bye' || type === 'legbye') {
+      t.score += runs;
+    } else {
+      // Wide or No Ball adds 1 run (extra)
+      t.score += 1;
+    }
+
+    // Find striker (first NOT OUT player)
+    let striker = t.players.find(p => !p.out);
+    if (striker) {
+      if (type === 'normal') {
+        striker.runs += runs;
+        striker.balls += 1;
+      } else if (type === 'bye' || type === 'legbye') {
+        striker.balls += 1;
       }
     }
 
-    function updateStartButton() {
-      if (players.length > 0) {
-        startBtn.disabled = false;
-        startBtn.classList.remove('disabled');
+    // Record ball info for ball-by-ball and undo
+    t.balls.push({
+      runs: runs,
+      type: type,
+      wicket: false
+    });
+
+    // Increase balls and overs count if ball counts (not wide or no ball)
+    if (!isExtra) {
+      t.ballsInCurrentOver++;
+      if (t.ballsInCurrentOver === 6) {
+        t.overs++;
+        t.ballsInCurrentOver = 0;
       }
     }
 
-    function endInning() {
-      alert("Inning ended. Now you can start a new inning.");
-      // Add logic to reset data or update innings
+    updateDisplay();
+  }
+
+  function recordWicket() {
+    let t = teams[currentTeam];
+    if (t.wickets === 10) {
+      alert('All players are out.');
+      return;
     }
-  </script>
-</body>
+    t.wickets += 1;
+
+    // Mark striker as out (first not out player)
+    let striker = t.players.find(p => !p.out);
+    if (striker) striker.out = true;
+
+    // Add ball event for wicket
+    t.balls.push({
+      runs: 0,
+      type: 'wicket',
+      wicket: true
+    });
+
+    // Wicket ball counts as legal ball
+    t.ballsInCurrentOver++;
+    if (t.ballsInCurrentOver === 6) {
+      t.overs++;
+      t.ballsInCurrentOver = 0;
+    }
+
+    updateDisplay();
+  }
+
+  function undoLastBall() {
+    let t = teams[currentTeam];
+    if (t.balls.length === 0) {
+      alert('No balls to undo!');
+      return;
+    }
+
+    let lastBall = t.balls.pop();
+
+    // Undo score updates
+    if (lastBall.type === 'normal' || lastBall.type === 'bye' || lastBall.type === 'legbye') {
+      t.score -= (lastBall.type === 'normal' ? lastBall.runs
