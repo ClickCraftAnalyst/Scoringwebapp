@@ -1,146 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cricket Scoring App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f4f4f4;
+      margin: 20px;
+      background: #f4f4f4;
     }
-    h1, h2 {
+    h1 {
       color: #333;
     }
-    input, button, select {
-      padding: 10px;
-      margin: 5px;
-    }
-    .score-section, .controls {
+    .input-section, .score-section, .extras-section, .players-section, .bowler-section {
       margin-bottom: 20px;
     }
-    .bowler-stats, .history {
-      background: #fff;
+    input[type="text"], input[type="number"] {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .button-group button {
+      display: inline-block;
+      width: 60px;
+    }
+    .log, .bowler-stats {
+      background: white;
       padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+      max-height: 200px;
+      overflow-y: auto;
     }
   </style>
 </head>
 <body>
   <h1>Cricket Scoring App</h1>
 
-  <div>
-    <label>Team Name: <input type="text" id="teamName" /></label>
-    <label>Batsman 1: <input type="text" id="batsman1" /></label>
-    <label>Batsman 2: <input type="text" id="batsman2" /></label>
-    <label>Bowler: <input type="text" id="bowlerName" /></label>
-    <button onclick="startInnings()">Start Innings</button>
+  <div class="input-section">
+    <label>Current Batting Team:</label>
+    <input type="text" id="teamName" placeholder="Enter team name">
+  </div>
+
+  <div class="players-section">
+    <label>Batsman 1:</label>
+    <input type="text" id="batsman1" placeholder="Enter name">
+    <label>Batsman 2:</label>
+    <input type="text" id="batsman2" placeholder="Enter name">
+  </div>
+
+  <div class="bowler-section">
+    <label>Current Bowler:</label>
+    <input type="text" id="currentBowler" placeholder="Enter bowler name">
   </div>
 
   <div class="score-section">
-    <h2 id="scoreDisplay">Score: 0/0</h2>
-    <h3 id="batsmenDisplay">Batsmen: </h3>
-    <h3 id="bowlerDisplay">Current Bowler: </h3>
+    <h2>Runs</h2>
+    <div class="button-group">
+      <button onclick="addRun(0)">0</button>
+      <button onclick="addRun(1)">1</button>
+      <button onclick="addRun(2)">2</button>
+      <button onclick="addRun(3)">3</button>
+      <button onclick="addRun(4)">4</button>
+      <button onclick="addRun(5)">5</button>
+      <button onclick="addRun(6)">6</button>
+    </div>
+    <button onclick="undoLastAction()">Undo</button>
   </div>
 
-  <div class="controls">
-    <button onclick="addRun(0)">0</button>
-    <button onclick="addRun(1)">1</button>
-    <button onclick="addRun(2)">2</button>
-    <button onclick="addRun(3)">3</button>
-    <button onclick="addRun(4)">4</button>
-    <button onclick="addRun(6)">6</button>
+  <div class="extras-section">
+    <h2>Extras</h2>
     <button onclick="addExtra('wide')">Wide</button>
     <button onclick="addExtra('noBall')">No Ball</button>
     <button onclick="addExtra('bye')">Bye</button>
     <button onclick="addExtra('legBye')">Leg Bye</button>
-    <button onclick="undoLast()">Undo</button>
   </div>
 
-  <div class="bowler-stats">
-    <h3>Bowler Stats</h3>
-    <div id="bowlerStats"></div>
+  <div>
+    <h2>Match Log</h2>
+    <div class="log" id="log"></div>
   </div>
 
-  <div class="history">
-    <h3>History</h3>
-    <ul id="historyList"></ul>
+  <div>
+    <h2>Bowler Statistics</h2>
+    <div class="bowler-stats" id="bowlerStats"></div>
   </div>
 
   <script>
-    let score = 0, wickets = 0, balls = 0;
-    let currentBatsmen = [], strikerIndex = 0, team = "";
-    let history = [], bowler = "", bowlerStats = {}, overBalls = 0;
+    let totalRuns = 0;
+    let ballsBowled = 0;
+    let striker = "";
+    let nonStriker = "";
+    let team = "";
+    let history = [];
+    let bowlerStats = {};
+    let currentBowler = "";
 
-    function startInnings() {
+    function updateBatsmen() {
+      striker = document.getElementById('batsman1').value;
+      nonStriker = document.getElementById('batsman2').value;
       team = document.getElementById('teamName').value;
-      currentBatsmen = [
-        document.getElementById('batsman1').value,
-        document.getElementById('batsman2').value
-      ];
-      bowler = document.getElementById('bowlerName').value;
-      if (!bowlerStats[bowler]) bowlerStats[bowler] = { runs: 0, balls: 0 };
-      updateDisplay();
+    }
+
+    function updateBowler() {
+      let newBowler = document.getElementById('currentBowler').value;
+      if (!bowlerStats[newBowler]) {
+        bowlerStats[newBowler] = { runs: 0, balls: 0 };
+      }
+      currentBowler = newBowler;
     }
 
     function addRun(run) {
-      score += run;
-      balls++;
-      overBalls++;
-      bowlerStats[bowler].runs += run;
-      bowlerStats[bowler].balls++;
-      if (run % 2 === 1) strikerIndex = 1 - strikerIndex;
-      history.push({ type: 'run', run, strikerIndex });
-      if (overBalls === 6) {
-        overBalls = 0;
-        bowler = prompt("Enter new bowler:");
-        if (!bowlerStats[bowler]) bowlerStats[bowler] = { runs: 0, balls: 0 };
+      updateBatsmen();
+      updateBowler();
+      totalRuns += run;
+      ballsBowled++;
+      bowlerStats[currentBowler].runs += run;
+      bowlerStats[currentBowler].balls++;
+
+      if (run % 2 === 1) {
+        [striker, nonStriker] = [nonStriker, striker];
       }
-      updateDisplay();
+
+      const logText = `${team}: ${striker} scored ${run} run(s). Total: ${totalRuns}`;
+      document.getElementById('log').innerHTML += `<div>${logText}</div>`;
+      history.push({ type: 'run', run, striker, nonStriker, bowler: currentBowler });
+
+      checkOverEnd();
+      updateStats();
     }
 
     function addExtra(type) {
-      let run = parseInt(prompt(`Enter runs for ${type}:`, "1")) || 1;
-      score += run;
-      if (type === 'noBall') {
-        bowlerStats[bowler].runs += run;
-        history.push({ type, run });
-      } else {
-        // No ball/bye/leg bye doesn't count as legal delivery
-        history.push({ type, run });
+      updateBowler();
+      let extraRun = 1;
+      if (type === 'noBall' || type === 'bye' || type === 'legBye') {
+        extraRun += parseInt(prompt("Enter runs scored on this extra (excluding 1 run penalty):"), 10) || 0;
       }
-      updateDisplay();
+      totalRuns += extraRun;
+      if (type !== 'wide' && type !== 'noBall') {
+        ballsBowled++;
+        bowlerStats[currentBowler].balls++;
+      }
+      bowlerStats[currentBowler].runs += extraRun;
+
+      const logText = `${team}: ${type} - ${extraRun} run(s) added.`;
+      document.getElementById('log').innerHTML += `<div>${logText}</div>`;
+      history.push({ type: 'extra', extra: type, run: extraRun, bowler: currentBowler });
+
+      checkOverEnd();
+      updateStats();
     }
 
-    function undoLast() {
+    function undoLastAction() {
       const last = history.pop();
       if (!last) return;
+
       if (last.type === 'run') {
-        score -= last.run;
-        balls--;
-        overBalls--;
-        bowlerStats[bowler].runs -= last.run;
-        bowlerStats[bowler].balls--;
-        if (last.run % 2 === 1) strikerIndex = 1 - strikerIndex;
-      } else {
-        score -= last.run;
-        if (last.type === 'noBall') {
-          bowlerStats[bowler].runs -= last.run;
+        totalRuns -= last.run;
+        ballsBowled--;
+        bowlerStats[last.bowler].runs -= last.run;
+        bowlerStats[last.bowler].balls--;
+        striker = last.striker;
+        nonStriker = last.nonStriker;
+      } else if (last.type === 'extra') {
+        totalRuns -= last.run;
+        if (last.extra !== 'wide' && last.extra !== 'noBall') {
+          ballsBowled--;
+          bowlerStats[last.bowler].balls--;
         }
+        bowlerStats[last.bowler].runs -= last.run;
       }
-      updateDisplay();
+
+      document.getElementById('log').innerHTML = history.map(item => {
+        if (item.type === 'run') {
+          return `<div>${team}: ${item.striker} scored ${item.run} run(s). Total: ${totalRuns}</div>`;
+        } else {
+          return `<div>${team}: ${item.extra} - ${item.run} run(s) added.</div>`;
+        }
+      }).join('');
+
+      updateStats();
     }
 
-    function updateDisplay() {
-      document.getElementById('scoreDisplay').textContent = `${team} Score: ${score}/${wickets}`;
-      document.getElementById('batsmenDisplay').textContent = `Striker: ${currentBatsmen[strikerIndex]} | Non-striker: ${currentBatsmen[1 - strikerIndex]}`;
-      document.getElementById('bowlerDisplay').textContent = `Current Bowler: ${bowler}`;
-      document.getElementById('historyList').innerHTML = history.map(h => `<li>${JSON.stringify(h)}</li>`).join('');
-      document.getElementById('bowlerStats').innerHTML = Object.entries(bowlerStats).map(([name, stat]) => `
-        <p><strong>${name}</strong>: ${stat.runs} runs, ${stat.balls} balls</p>
-      `).join('');
+    function checkOverEnd() {
+      if (bowlerStats[currentBowler].balls % 6 === 0) {
+        alert("Over completed. Please change the bowler.");
+        document.getElementById('currentBowler').value = "";
+      }
+    }
+
+    function updateStats() {
+      const statsDiv = document.getElementById('bowlerStats');
+      statsDiv.innerHTML = Object.entries(bowlerStats).map(([name, stat]) =>
+        `<div>${name}: ${stat.runs} runs, ${stat.balls} balls</div>`
+      ).join('');
     }
   </script>
 </body>
