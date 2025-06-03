@@ -207,5 +207,154 @@
       ).join('');
     }
   </script>
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+export default function CricketScoringApp() {
+  const [teamName, setTeamName] = useState('');
+  const [batsmen, setBatsmen] = useState(['', '']);
+  const [strikerIndex, setStrikerIndex] = useState(0);
+  const [runs, setRuns] = useState(0);
+  const [balls, setBalls] = useState(0);
+  const [overs, setOvers] = useState([]);
+  const [currentOver, setCurrentOver] = useState([]);
+  const [undoStack, setUndoStack] = useState([]);
+  const [bowler, setBowler] = useState('');
+  const [bowlerStats, setBowlerStats] = useState({});
+
+  const legalDeliveryTypes = ['run', 'bye', 'legBye'];
+
+  const recordDelivery = (type, value = 0) => {
+    const delivery = { type, value, striker: batsmen[strikerIndex], bowler };
+    const isLegal = type === 'run' || type === 'bye' || type === 'legBye';
+
+    if (type === 'run' || type === 'noBall') setRuns(prev => prev + value);
+    if (type === 'wide' || type === 'noBall') {
+      setRuns(prev => prev + 1);
+    }
+
+    const updatedCurrentOver = [...currentOver, delivery];
+    if (isLegal) setBalls(prev => prev + 1);
+
+    if (isLegal && (value % 2 === 1)) {
+      setStrikerIndex(prev => 1 - prev);
+    }
+
+    if (isLegal && (balls + 1) % 6 === 0) {
+      setOvers([...overs, updatedCurrentOver]);
+      setCurrentOver([]);
+      promptNewBowler();
+    } else {
+      setCurrentOver(updatedCurrentOver);
+    }
+
+    if (bowler) {
+      setBowlerStats(prev => ({
+        ...prev,
+        [bowler]: {
+          runs: (prev[bowler]?.runs || 0) + (type === 'run' || type === 'noBall' ? value + (type === 'noBall' ? 1 : 0) : type === 'wide' ? 1 : 0),
+          balls: (prev[bowler]?.balls || 0) + (isLegal ? 1 : 0),
+        },
+      }));
+    }
+
+    setUndoStack(prev => [...prev, {
+      runs,
+      balls,
+      overs,
+      currentOver,
+      strikerIndex,
+      bowlerStats,
+    }]);
+  };
+
+  const promptNewBowler = () => {
+    const newBowler = prompt('Enter new bowler name:');
+    if (newBowler) setBowler(newBowler);
+  };
+
+  const handleUndo = () => {
+    const lastState = undoStack.pop();
+    if (!lastState) return;
+    setRuns(lastState.runs);
+    setBalls(lastState.balls);
+    setOvers(lastState.overs);
+    setCurrentOver(lastState.currentOver);
+    setStrikerIndex(lastState.strikerIndex);
+    setBowlerStats(lastState.bowlerStats);
+    setUndoStack([...undoStack]);
+  };
+
+  const handleRunClick = (value) => recordDelivery('run', value);
+  const handleWide = () => recordDelivery('wide');
+  const handleNoBall = () => {
+    const nbRun = parseInt(prompt('Runs off no-ball:'), 10) || 0;
+    recordDelivery('noBall', nbRun);
+  };
+  const handleBye = () => {
+    const byeRun = parseInt(prompt('Runs off bye:'), 10) || 0;
+    recordDelivery('bye', byeRun);
+  };
+  const handleLegBye = () => {
+    const lbRun = parseInt(prompt('Runs off leg-bye:'), 10) || 0;
+    recordDelivery('legBye', lbRun);
+  };
+
+  return (
+    <div className="p-4 max-w-2xl mx-auto space-y-4">
+      <h2 className="text-xl font-bold">Cricket Scoring App</h2>
+
+      <div className="space-y-2">
+        <Input
+          placeholder="Enter Team Name"
+          value={teamName}
+          onChange={(e) => setTeamName(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            placeholder="Batsman 1"
+            value={batsmen[0]}
+            onChange={(e) => setBatsmen([e.target.value, batsmen[1]])}
+          />
+          <Input
+            placeholder="Batsman 2"
+            value={batsmen[1]}
+            onChange={(e) => setBatsmen([batsmen[0], e.target.value])}
+          />
+        </div>
+        <Input
+          placeholder="Bowler Name"
+          value={bowler}
+          onChange={(e) => setBowler(e.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {[0, 1, 2, 3, 4, 5, 6].map(num => (
+          <Button key={num} onClick={() => handleRunClick(num)}>{num}</Button>
+        ))}
+        <Button onClick={handleWide}>Wide</Button>
+        <Button onClick={handleNoBall}>No-Ball</Button>
+        <Button onClick={handleBye}>Bye</Button>
+        <Button onClick={handleLegBye}>Leg Bye</Button>
+        <Button onClick={handleUndo} variant="destructive">Undo</Button>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Score: {runs}/{balls}</h3>
+        <p>Striker: {batsmen[strikerIndex]}</p>
+        <p>Overs: {Math.floor(balls / 6)}.{balls % 6}</p>
+        <p>Bowler: {bowler}</p>
+        <div>
+          <h4 className="font-semibold">Bowler Stats:</h4>
+          {Object.entries(bowlerStats).map(([name, stat]) => (
+            <p key={name}>{name}: {stat.balls} balls, {stat.runs} runs</p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 </body>
 </html>
