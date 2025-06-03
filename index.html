@@ -142,278 +142,175 @@
   <footer class="footer">
     &copy; 2025 Clickcraft Analyst. All rights reserved.
   </footer>
-  <!-- JavaScript remains unchanged -->
- <script>
-  let teams = [
-    {
-      name: 'Team A',
-      players: [],
-      score: 0,
-      wickets: 0,
-      overs: 0,
-      ballsInCurrentOver: 0,
-      balls: [],  // Array to hold ball events for undo & ball-by-ball
-    },
-    {
-      name: 'Team B',
-      players: [],
-      score: 0,
-      wickets: 0,
-      overs: 0,
-      ballsInCurrentOver: 0,
-      balls: [],
-    }
-  ];
 
-  let currentTeam = 0;
+  <!-- JavaScript Section -->
+  <script>
+    let teams = [
+      { name: 'Team A', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, balls: [] },
+      { name: 'Team B', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, balls: [] }
+    ];
 
-  // Team name inputs update team names live and display updated
-  document.getElementById('team0').addEventListener('input', e => {
-    teams[0].name = e.target.value || 'Team A';
-    updateDisplay();
-  });
+    let currentTeam = 0;
 
-  document.getElementById('team1').addEventListener('input', e => {
-    teams[1].name = e.target.value || 'Team B';
-    updateDisplay();
-  });
-
-  function updateDisplay() {
-    // Update summary for both teams
-    for (let i = 0; i <= 1; i++) {
-      document.getElementById('team' + i + 'Name').innerText = teams[i].name;
-      document.getElementById('team' + i + 'Score').innerText = teams[i].score;
-      document.getElementById('team' + i + 'Wickets').innerText = teams[i].wickets;
-      document.getElementById('team' + i + 'Overs').innerText = teams[i].overs + '.' + teams[i].ballsInCurrentOver;
-    }
-
-    // Current team display
-    const t = teams[currentTeam];
-    document.getElementById('currentTeamName').innerText = t.name;
-    document.getElementById('currentScore').innerText = t.score;
-    document.getElementById('currentWickets').innerText = t.wickets;
-    document.getElementById('currentOvers').innerText = t.overs + '.' + t.ballsInCurrentOver;
-
-    // Update players list of current team
-    const list = document.getElementById('playerList');
-    list.innerHTML = '';
-    t.players.forEach(p => {
-      let li = document.createElement('li');
-      li.textContent = ${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'};
-      list.appendChild(li);
+    document.getElementById('team0').addEventListener('input', e => {
+      teams[0].name = e.target.value || 'Team A';
+      updateDisplay();
     });
 
-    // Update ball-by-ball display for current innings
-    const ballList = document.getElementById('ballByBallList');
-    ballList.innerHTML = '';
-    t.balls.forEach((ball, idx) => {
-      let li = document.createElement('li');
-      li.textContent = Ball ${idx + 1}: ${ball.type === 'normal' ? ball.runs + ' run(s)' : ball.type.toUpperCase()};
-      if(ball.wicket) li.textContent += ' (WICKET)';
-      ballList.appendChild(li);
+    document.getElementById('team1').addEventListener('input', e => {
+      teams[1].name = e.target.value || 'Team B';
+      updateDisplay();
     });
-  }
 
-  function addPlayer() {
-    let nameInput = document.getElementById('playerName');
-    let name = nameInput.value.trim();
-    if (name === '') {
-      alert('Please enter player name.');
-      return;
-    }
-    if (teams[currentTeam].players.length >= 11) {
-      alert('Maximum 11 players allowed per team.');
-      return;
-    }
-    teams[currentTeam].players.push({ name: name, runs: 0, balls: 0, out: false });
-    nameInput.value = '';
-    updateDisplay();
-  }
-
-  function recordRun(runs, type = 'normal') {
-    let t = teams[currentTeam];
-
-    // Extra ball types (wide/noball) do NOT count as ball faced
-    const isExtra = (type === 'wide' || type === 'noball');
-
-    // Add score depending on type
-    if (type === 'normal' || type === 'bye' || type === 'legbye') {
-      t.score += runs;
-    } else {
-      // Wide or No Ball adds 1 run (extra)
-      t.score += 1;
-    }
-
-    // Find striker (first NOT OUT player)
-    let striker = t.players.find(p => !p.out);
-    if (striker) {
-      if (type === 'normal') {
-        striker.runs += runs;
-        striker.balls += 1;
-      } else if (type === 'bye' || type === 'legbye') {
-        striker.balls += 1;
+    function updateDisplay() {
+      for (let i = 0; i <= 1; i++) {
+        document.getElementById('team' + i + 'Name').innerText = teams[i].name;
+        document.getElementById('team' + i + 'Score').innerText = teams[i].score;
+        document.getElementById('team' + i + 'Wickets').innerText = teams[i].wickets;
+        document.getElementById('team' + i + 'Overs').innerText = teams[i].overs + '.' + teams[i].ballsInCurrentOver;
       }
+
+      const t = teams[currentTeam];
+      document.getElementById('currentTeamName').innerText = t.name;
+      document.getElementById('currentScore').innerText = t.score;
+      document.getElementById('currentWickets').innerText = t.wickets;
+      document.getElementById('currentOvers').innerText = t.overs + '.' + t.ballsInCurrentOver;
+
+      const list = document.getElementById('playerList');
+      list.innerHTML = '';
+      t.players.forEach(p => {
+        let li = document.createElement('li');
+        li.textContent = `${p.name} - ${p.runs} runs (${p.balls} balls) ${p.out ? 'OUT' : 'NOT OUT'}`;
+        list.appendChild(li);
+      });
+
+      const ballList = document.getElementById('ballByBallList');
+      ballList.innerHTML = '';
+      t.balls.forEach((ball, idx) => {
+        let li = document.createElement('li');
+        let summary = ball.type === 'normal' ? `${ball.runs} run(s)` : ball.type.toUpperCase();
+        li.textContent = `Ball ${idx + 1}: ${summary}${ball.wicket ? ' (WICKET)' : ''}`;
+        ballList.appendChild(li);
+      });
     }
 
-    // Record ball info for ball-by-ball and undo
-    t.balls.push({
-      runs: runs,
-      type: type,
-      wicket: false
-    });
+    function addPlayer() {
+      let nameInput = document.getElementById('playerName');
+      let name = nameInput.value.trim();
+      if (name === '' || teams[currentTeam].players.length >= 11) return;
+      teams[currentTeam].players.push({ name: name, runs: 0, balls: 0, out: false });
+      nameInput.value = '';
+      updateDisplay();
+    }
 
-    // Increase balls and overs count if ball counts (not wide or no ball)
-    if (!isExtra) {
+    function recordRun(runs, type = 'normal') {
+      let t = teams[currentTeam];
+      const isExtra = (type === 'wide' || type === 'noball');
+      if (type === 'normal' || type === 'bye' || type === 'legbye') t.score += runs;
+      else t.score += 1;
+
+      let striker = t.players.find(p => !p.out);
+      if (striker) {
+        if (type === 'normal') {
+          striker.runs += runs;
+          striker.balls += 1;
+        } else if (type === 'bye' || type === 'legbye') {
+          striker.balls += 1;
+        }
+      }
+
+      t.balls.push({ runs: runs, type: type, wicket: false });
+
+      if (!isExtra) {
+        t.ballsInCurrentOver++;
+        if (t.ballsInCurrentOver === 6) {
+          t.overs++;
+          t.ballsInCurrentOver = 0;
+        }
+      }
+
+      updateDisplay();
+    }
+
+    function recordWicket() {
+      let t = teams[currentTeam];
+      if (t.wickets === 10) return;
+      t.wickets++;
+      let striker = t.players.find(p => !p.out);
+      if (striker) striker.out = true;
+      t.balls.push({ runs: 0, type: 'wicket', wicket: true });
       t.ballsInCurrentOver++;
       if (t.ballsInCurrentOver === 6) {
         t.overs++;
         t.ballsInCurrentOver = 0;
       }
+      updateDisplay();
     }
 
-    updateDisplay();
-  }
-
-  function recordWicket() {
-    let t = teams[currentTeam];
-    if (t.wickets === 10) {
-      alert('All players are out.');
-      return;
-    }
-    t.wickets += 1;
-
-    // Mark striker as out (first not out player)
-    let striker = t.players.find(p => !p.out);
-    if (striker) striker.out = true;
-
-    // Add ball event for wicket
-    t.balls.push({
-      runs: 0,
-      type: 'wicket',
-      wicket: true
-    });
-
-    // Wicket ball counts as legal ball
-    t.ballsInCurrentOver++;
-    if (t.ballsInCurrentOver === 6) {
-      t.overs++;
-      t.ballsInCurrentOver = 0;
-    }
-
-    updateDisplay();
-  }
-
-  function undoLastBall() {
-    let t = teams[currentTeam];
-    if (t.balls.length === 0) {
-      alert('No balls to undo!');
-      return;
-    }
-
-    let lastBall = t.balls.pop();
-
-    // Undo score updates
-    if (lastBall.type === 'normal' || lastBall.type === 'bye' || lastBall.type === 'legbye') {
-      t.score -= (lastBall.type === 'normal' ? lastBall.runs : 0);  // Runs added only for normal run ball
-      if (lastBall.type !== 'bye' && lastBall.type !== 'legbye') {
-        // Deduct runs for normal ball
+    function undoLastBall() {
+      let t = teams[currentTeam];
+      if (t.balls.length === 0) return;
+      let lastBall = t.balls.pop();
+      if (lastBall.type === 'normal') {
         t.score -= lastBall.runs;
-      }
-      else {
-        // Extras (bye, legbye) add runs but not to total? Actually run added only for normal, so do nothing
-      }
-    } else if (lastBall.type === 'wide' || lastBall.type === 'noball') {
-      t.score -= 1;
-    } else if (lastBall.type === 'wicket') {
-      t.wickets -= 1;
-
-      // Mark last out player as NOT out
-      for (let i = t.players.length - 1; i >= 0; i--) {
-        if (t.players[i].out) {
-          t.players[i].out = false;
-          break;
-        }
-      }
-    }
-
-    // Undo ball count if ball was legal ball (not wide or no ball)
-    if (lastBall.type !== 'wide' && lastBall.type !== 'noball') {
-      if (t.ballsInCurrentOver === 0) {
-        if (t.overs > 0) {
-          t.overs--;
-          t.ballsInCurrentOver = 5;
-        }
-      } else {
-        t.ballsInCurrentOver--;
-      }
-    }
-
-    // Undo player runs and balls for normal, bye, legbye
-    if (lastBall.type === 'normal' || lastBall.type === 'bye' || lastBall.type === 'legbye') {
-      let striker = t.players.find(p => !p.out);
-      if (striker) {
-        if (lastBall.type === 'normal') {
+        let striker = t.players.find(p => !p.out);
+        if (striker) {
           striker.runs -= lastBall.runs;
           striker.balls -= 1;
-        } else if (lastBall.type === 'bye' || lastBall.type === 'legbye') {
-          striker.balls -= 1;
+        }
+      } else if (lastBall.type === 'bye' || lastBall.type === 'legbye') {
+        let striker = t.players.find(p => !p.out);
+        if (striker) striker.balls -= 1;
+      } else if (lastBall.type === 'wide' || lastBall.type === 'noball') {
+        t.score -= 1;
+      } else if (lastBall.type === 'wicket') {
+        t.wickets--;
+        for (let i = t.players.length - 1; i >= 0; i--) {
+          if (t.players[i].out) {
+            t.players[i].out = false;
+            break;
+          }
         }
       }
+
+      if (lastBall.type !== 'wide' && lastBall.type !== 'noball') {
+        if (t.ballsInCurrentOver === 0) {
+          if (t.overs > 0) {
+            t.overs--;
+            t.ballsInCurrentOver = 5;
+          }
+        } else {
+          t.ballsInCurrentOver--;
+        }
+      }
+
+      updateDisplay();
+    }
+
+    function clearInnings() {
+      let t = teams[currentTeam];
+      t.score = 0; t.wickets = 0; t.overs = 0; t.ballsInCurrentOver = 0; t.balls = [];
+      t.players.forEach(p => { p.runs = 0; p.balls = 0; p.out = false; });
+      updateDisplay();
+    }
+
+    function switchTeam() {
+      currentTeam = currentTeam === 0 ? 1 : 0;
+      updateDisplay();
+    }
+
+    function resetMatch() {
+      teams = [
+        { name: 'Team A', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, balls: [] },
+        { name: 'Team B', players: [], score: 0, wickets: 0, overs: 0, ballsInCurrentOver: 0, balls: [] }
+      ];
+      currentTeam = 0;
+      document.getElementById('team0').value = 'Team A';
+      document.getElementById('team1').value = 'Team B';
+      updateDisplay();
     }
 
     updateDisplay();
-  }
-
-  function clearInnings() {
-    let t = teams[currentTeam];
-    t.score = 0;
-    t.wickets = 0;
-    t.overs = 0;
-    t.ballsInCurrentOver = 0;
-    t.balls = [];
-    t.players.forEach(p => {
-      p.runs = 0;
-      p.balls = 0;
-      p.out = false;
-    });
-    updateDisplay();
-  }
-
-  function switchTeam() {
-    currentTeam = currentTeam === 0 ? 1 : 0;
-    updateDisplay();
-  }
-
-  function resetMatch() {
-    teams = [
-      {
-        name: 'Team A',
-        players: [],
-        score: 0,
-        wickets: 0,
-        overs: 0,
-        ballsInCurrentOver: 0,
-        balls: [],
-      },
-      {
-        name: 'Team B',
-        players: [],
-        score: 0,
-        wickets: 0,
-        overs: 0,
-        ballsInCurrentOver: 0,
-        balls: [],
-      }
-    ];
-    currentTeam = 0;
-    document.getElementById('team0').value = 'Team A';
-    document.getElementById('team1').value = 'Team B';
-    updateDisplay();
-  }
-
-  // Initialize display on load
-  updateDisplay();
-
-</script>
+  </script>
 </body>
 </html>
